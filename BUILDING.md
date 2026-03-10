@@ -7,7 +7,7 @@ This repository is an early adaptation pass of the original HOT4D plugin toward 
 The Cinema 4D 2026 SDK ships a **top-level CMake project** which discovers plugin/modules from either:
 
 - the SDK-local `plugins/` folder (`MAXON_SDK_MODULES_DIR`), or
-- a `MAXON_SDK_CUSTOM_PATHS_FILE` text file listing external module roots.
+- a `MAXON_SDK_CUSTOM_PATHS_FILE` text file using SDK custom-path commands such as `MODULE <path>` for external module roots.
 
 This HOT4D repo already has the expected module layout for that workflow:
 
@@ -86,10 +86,12 @@ Because the SDK frameworks are absent, CMake cannot finish loading the SDK itsel
 
 A full build requires all of the following:
 
-1. A **complete Cinema 4D 2026 and later C++ SDK** extraction.
+1. A **complete extended Cinema 4D 2026 and later C++ SDK** extraction from the Maxon developer downloads.
 2. The SDK `frameworks/` tree and its framework `projectdefinition.txt` files.
 3. The SDK top-level CMake tooling.
 4. A supported compiler toolchain (Visual Studio 2026/2022 on Windows).
+
+The SDK documentation explicitly says the extended SDK ships with the necessary SDK components, while the `sdk.zip` shipped with Cinema 4D is insufficient. The payload inspected for this bring-up does not match that expectation because it has `CMakeLists.txt`, `cmake/`, and `docs/`, but no `frameworks/` directory at all.
 
 ## Generated files still expected once the SDK is complete
 
