@@ -25,7 +25,20 @@
 #include "OOceanDeformer.h"
 #include "description/OceanDescription.h"
 
+#include <cmath>
 
+namespace
+{
+	static inline Bool IsFiniteScalar(const maxon::Float value)
+	{
+		return std::isfinite(value) != 0;
+	}
+
+	static inline Bool IsFiniteVector(const maxon::Vector& value)
+	{
+		return IsFiniteScalar(value.x) && IsFiniteScalar(value.y) && IsFiniteScalar(value.z);
+	}
+}
 
 maxon::Float OceanSimulationDeformer::MapRange(maxon::Float value, const maxon::Float min_input, const maxon::Float max_input, const maxon::Float min_output, const maxon::Float max_output) const
 {
@@ -265,7 +278,8 @@ Bool OceanSimulationDeformer::ModifyObject(const BaseObject *mod, const BaseDocu
 
 	iferr_scope_handler
 	{
-		return false;
+		DiagnosticOutput("OceanSimulationDeformer::ModifyObject fallback due to runtime error: @", err);
+		return true;
 	};
 
 	if (!op->IsInstanceOf(Opoint) || !falloff_) 
@@ -285,7 +299,6 @@ Bool OceanSimulationDeformer::ModifyObject(const BaseObject *mod, const BaseDocu
 	VertexColorHandle                  jacobpoint = nullptr;
 	VertexColorHandle                  foampoint = nullptr;
 
-
 	maxon::Float32                  *weight = nullptr;
 	maxon::Float                    pselThres;
 	maxon::Float                    jacobThres, foamThres;
@@ -302,7 +315,7 @@ Bool OceanSimulationDeformer::ModifyObject(const BaseObject *mod, const BaseDocu
 
 	padr = ToPoint(op)->GetPointW();
 	pcnt = ToPoint(op)->GetPointCount(); 
-	if (!pcnt) 
+	if (!padr || !pcnt) 
 		return true;
 	weight = ToPoint(op)->CalcVertexMap(mod);
 	finally{
@@ -445,26 +458,36 @@ Bool OceanSimulationDeformer::ModifyObject(const BaseObject *mod, const BaseDocu
 
 	if (oceanSimulationRef_ == nullptr)
 	{
-		oceanSimulationRef_ = OceanSimulation::Ocean().Create() iferr_return;
+		iferr (oceanSimulationRef_ = OceanSimulation::Ocean().Create())
+		{
+			DiagnosticOutput("OceanSimulationDeformer: failed to create ocean simulation, leaving source geometry untouched: @", err);
+			return true;
+		};
 	}
-	
-	
-
 
 	if (oceanSimulationRef_.NeedUpdate(oceanResolution, oceanSize, shrtWaveLenght, waveHeight, windSpeed, windDirection, windAlign, dampReflection, seed))
 	{
-		oceanSimulationRef_.Init(oceanResolution, oceanSize, shrtWaveLenght, waveHeight, windSpeed, windDirection, windAlign, dampReflection, seed) iferr_return;
+		iferr (oceanSimulationRef_.Init(oceanResolution, oceanSize, shrtWaveLenght, waveHeight, windSpeed, windDirection, windAlign, dampReflection, seed))
+		{
+			DiagnosticOutput("OceanSimulationDeformer: failed to initialize ocean simulation, leaving source geometry untouched: @", err);
+			return true;
+		};
 	}
-	
-	
-	oceanSimulationRef_.Animate(currentTime_, timeLoop, timeScale, oceanDepth, chopAmount, true, doChopyness, doJacobian, doNormals) iferr_return;
-	
+
+	iferr (oceanSimulationRef_.Animate(currentTime_, timeLoop, timeScale, oceanDepth, chopAmount, true, doChopyness, doJacobian, doNormals))
+	{
+		DiagnosticOutput("OceanSimulationDeformer: failed to animate ocean simulation, leaving source geometry untouched: @", err);
+		return true;
+	};
+
 	FieldInput inputs(padr, pcnt, op_mg);
 	FieldOutput fieldSamples;
 	FalloffDataData falloffData;
-	if (!falloff_->InitFalloff(doc, mod, falloffData))
-		return false;
-	Bool outputsOK = falloff_->PreSample(mod, doc, inputs, fieldSamples, falloffData, FIELDSAMPLE_FLAG::VALUE);
+	Bool outputsOK = false;
+	if (falloff_->InitFalloff(doc, mod, falloffData))
+		outputsOK = falloff_->PreSample(mod, doc, inputs, fieldSamples, falloffData, FIELDSAMPLE_FLAG::VALUE);
+	else
+		DiagnosticOutput("OceanSimulationDeformer: falloff init failed, using full-strength deformation fallback.");
 
 
 	
@@ -485,29 +508,41 @@ Bool OceanSimulationDeformer::ModifyObject(const BaseObject *mod, const BaseDocu
 
 		iferr_scope_handler
 		{
-			err.DbgStop();
 			return;
 		};
 		maxon::Vector p = padr[i];
+		if (!IsFiniteVector(p))
+			return;
 		
 		maxon::Vector disp, normal, dispValue;
-		maxon::Float jMinus;
+		maxon::Float jMinus = 0.0;
 
 		oceanSimulationRef_.EvaluatePoint(interType, p, disp, normal, jMinus) iferr_return;
+		if (!IsFiniteVector(disp) || !IsFiniteScalar(jMinus))
+			return;
 
 		Float fallOffSampleValue(1.0);
 		if (outputsOK)
+		{
 			falloff_->Sample(mod, p, &fallOffSampleValue, &fieldSamples, falloffData, true, 0.0, i);
+			if (!IsFiniteScalar(fallOffSampleValue))
+				fallOffSampleValue = 1.0;
+		}
 		disp *= fallOffSampleValue;
 
-
 		if (weight)
-			disp *= weight[i]; 
+		{
+			const maxon::Float weightValue = weight[i];
+			if (IsFiniteScalar(weightValue))
+				disp *= weightValue;
+		}
 
 		if (doChopyness)
 			p += disp;
 		else
 			p.y += disp.y;
+		if (!IsFiniteVector(p))
+			return;
 
 		if (doJacobian)
 		{
