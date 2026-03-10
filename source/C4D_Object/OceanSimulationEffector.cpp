@@ -243,7 +243,8 @@ maxon::Result<void> OceanSimulationEffector::EvaluatePoint(const BaseObject* op,
 	maxon::Vector normal;
 	maxon::Float jMinus;
 	oceanSimulationRef_.EvaluatePoint(interType, p, displacement, normal, jMinus) iferr_return;
-	displacement /= waveHeight; // scale down the result by the wavelegnth so the result should be beetween -1 and 1
+	if (!CompareFloatTolerant(waveHeight, 0.0))
+		displacement /= waveHeight; // scale down the result by the wavelegnth so the result should be beetween -1 and 1
 	// jMinus /= waveHeight;
 	return  maxon::OK;
 }

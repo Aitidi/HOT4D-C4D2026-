@@ -321,6 +321,21 @@ Bool OceanSimulationDeformer::ModifyObject(const BaseObject *mod, const BaseDocu
 	finally{
 		DeleteMem(weight);
 	};
+	if (weight)
+	{
+		Bool hasMeaningfulWeight = false;
+		for (maxon::Int32 i = 0; i < pcnt; ++i)
+		{
+			const maxon::Float weightValue = weight[i];
+			if (IsFiniteScalar(weightValue) && !CompareFloatTolerant(weightValue, 0.0))
+			{
+				hasMeaningfulWeight = true;
+				break;
+			}
+		}
+		if (!hasMeaningfulWeight)
+			weight = nullptr;
+	}
 	
 
 	mod->GetParameter(CreateDescID(OCEAN_RESOLUTION), data, DESCFLAGS_GET::NONE);
@@ -480,14 +495,18 @@ Bool OceanSimulationDeformer::ModifyObject(const BaseObject *mod, const BaseDocu
 		return true;
 	};
 
+	const Bool hasFalloffContent = falloff_->HasContent();
 	FieldInput inputs(padr, pcnt, op_mg);
 	FieldOutput fieldSamples;
 	FalloffDataData falloffData;
 	Bool outputsOK = false;
-	if (falloff_->InitFalloff(doc, mod, falloffData))
-		outputsOK = falloff_->PreSample(mod, doc, inputs, fieldSamples, falloffData, FIELDSAMPLE_FLAG::VALUE);
-	else
-		DiagnosticOutput("OceanSimulationDeformer: falloff init failed, using full-strength deformation fallback.");
+	if (hasFalloffContent)
+	{
+		if (falloff_->InitFalloff(doc, mod, falloffData))
+			outputsOK = falloff_->PreSample(mod, doc, inputs, fieldSamples, falloffData, FIELDSAMPLE_FLAG::VALUE);
+		else
+			DiagnosticOutput("OceanSimulationDeformer: falloff init failed, using full-strength deformation fallback.");
+	}
 
 
 	
