@@ -31,15 +31,21 @@ This repository is intended to:
 The code structure is kept close to upstream:
 - `source/` — plugin and ocean simulation source code
 - `res/` — Cinema 4D resources, descriptions, strings, icons
-- `project/` — legacy project definitions from the original codebase
+- `project/` — Cinema 4D module build metadata
+- `scripts/` — local helper scripts for SDK-backed bring-up
 
 ## Status
 
 Initial fork-style bootstrap is complete.
 Cinema 4D 2026 and later compatibility analysis and porting work is in progress.
 
-Current first-pass notes:
-- see `BUILDING.md` for SDK/build expectations and known blockers
+The first real SDK-backed integration pass has now been exercised:
+- the correct integration route is the SDK's **top-level CMake** plus `MAXON_SDK_CUSTOM_PATHS_FILE`
+- this repo is discovered correctly as an external module by the SDK CMake flow
+- the currently provided SDK payload is incomplete (missing the `frameworks/` tree), so configure stops before HOT4D source compilation begins
+
+Current notes:
+- see `BUILDING.md` for the verified SDK workflow and current blocker
 - see `TODO-C4D2026Plus.md` for the active porting checklist
 - see `docs/MIGRATION-NOTES-C4D2026Plus.md` for the source-tree responsibility/risk map
 
@@ -48,7 +54,3 @@ Current first-pass notes:
 This repository is an adaptation/maintenance continuation and is **not** the original upstream project.
 If you need original history and context, start here:
 https://github.com/Valkaari/HOT4D
-
-
-
-

@@ -2,59 +2,112 @@
 
 This repository is an early adaptation pass of the original HOT4D plugin toward the Cinema 4D 2026 and later SDK.
 
-## Expected build system
+## Actual SDK-backed build approach
 
-The repository layout matches the Maxon/Cinema 4D **project tool** style plugin layout:
+The Cinema 4D 2026 SDK ships a **top-level CMake project** which discovers plugin/modules from either:
+
+- the SDK-local `plugins/` folder (`MAXON_SDK_MODULES_DIR`), or
+- a `MAXON_SDK_CUSTOM_PATHS_FILE` text file listing external module roots.
+
+This HOT4D repo already has the expected module layout for that workflow:
 
 - `project/projectdefinition.txt` declares a `DLL` plugin target.
-- `APIS=cinema.framework;math.framework;core.framework;misc.framework;` indicates the modern framework-based SDK.
+- `APIS=cinema.framework;math.framework;core.framework;misc.framework;` opts into the modern framework-based SDK.
 - `source/framework_registration.cpp` includes generated registration glue.
 - `source/OceanSimulation/OceanSimulation_decl.h` includes generated Maxon interface declaration headers.
 
-In practice, this means the repository is **not self-contained**: it expects to be built inside a configured Cinema 4D SDK environment that generates some helper headers during project generation / build configuration.
+So the intended build is:
 
-## Known prerequisites
+1. point the SDK's top-level CMake at this repo via `MAXON_SDK_CUSTOM_PATHS_FILE`,
+2. let the SDK generate module-specific build files and generated `*.hxx` glue,
+3. build the generated Visual Studio/Xcode/Ninja project from the SDK build tree.
 
-A full build likely requires all of the following:
+## Helper script
 
-1. The **Cinema 4D 2026 and later C++ SDK** (or a very close compatible SDK version).
-2. The Maxon project generation/build tooling used by current SDK examples.
-3. SDK include paths for the framework APIs and MoGraph / object plugin headers.
-4. Generated registration/interface files that are not committed in this repository.
+A Windows helper is included to drive that setup:
 
-## Currently missing/generated files
+- `scripts/Configure-HOT4D-C4D2026SDK.ps1`
 
-At inspection time, these headers were referenced but not present in the repository:
+Example:
+
+```powershell
+pwsh -File .\scripts\Configure-HOT4D-C4D2026SDK.ps1 `
+  -SdkRoot 'C:\path\to\Cinema_4D_CPP_SDK_2026_1_0' `
+  -Build
+```
+
+What it does:
+
+- locates `cmake.exe` (PATH, standalone install, or Visual Studio bundled CMake),
+- validates that the SDK root looks complete,
+- writes `custom_paths_hot4d.txt` into the SDK root with this repo as an external module,
+- runs the SDK top-level CMake configure,
+- optionally runs the build.
+
+## What was verified in the first real SDK-backed pass
+
+A real configure attempt was run against the provided SDK root using Visual Studio 2026 CMake:
+
+```powershell
+cmake -S <SDK_ROOT> -B <SDK_ROOT>\_build_hot4d_vs18 \
+  -G "Visual Studio 18 2026" -A x64 \
+  -D MAXON_SDK_CUSTOM_PATHS_FILE=<SDK_ROOT>\custom_paths_hot4d.txt
+```
+
+That configure **successfully reached SDK module discovery** and recognized this repo as an external module:
+
+- `Reading path definitions: ...custom_paths_hot4d.txt`
+- `Read module paths: .../repo`
+- `Updating CMake file for 'repo'`
+
+This confirms the integration route is correct.
+
+## Current hard blocker from the provided SDK payload
+
+The configure then failed before code compilation because the provided SDK root is incomplete:
+
+- expected path missing: `frameworks/cinema.framework/project/projectdefinition.txt`
+- in fact, the provided SDK root currently has `CMakeLists.txt`, `cmake/`, and `docs/`, but **no `frameworks/` tree at all**.
+
+Error excerpt:
+
+```text
+Project Definition File does not exist at location
+'C:/.../Cinema_4D_CPP_SDK_2026_1_0/frameworks/cinema.framework/project/projectdefinition.txt'
+```
+
+Because the SDK frameworks are absent, CMake cannot finish loading the SDK itself, so it cannot yet:
+
+- generate HOT4D's missing registration/interface `*.hxx` files,
+- compile plugin sources,
+- surface the first real C++ API migration errors.
+
+## Expected SDK prerequisites
+
+A full build requires all of the following:
+
+1. A **complete Cinema 4D 2026 and later C++ SDK** extraction.
+2. The SDK `frameworks/` tree and its framework `projectdefinition.txt` files.
+3. The SDK top-level CMake tooling.
+4. A supported compiler toolchain (Visual Studio 2026/2022 on Windows).
+
+## Generated files still expected once the SDK is complete
+
+When configured from a complete SDK, this module is expected to generate and/or consume helper headers such as:
 
 - `source/registration_com_valkaari_hot4D.hxx`
 - `source/OceanSimulation/OceanSimulation_decl1.hxx`
 - `source/OceanSimulation/OceanSimulation_decl2.hxx`
 
-Those are typical generated artifacts in a modern Cinema 4D framework project. Their absence currently blocks an out-of-the-box build from the repository alone.
-
-## First-pass compatibility observations
-
-### Likely modern-SDK aligned pieces
-
-- `project/projectdefinition.txt` already uses framework-style API declarations.
-- The plugin uses `maxon::Result`, `MAXON_INTERFACE`, `MatrixNxM`, `FFT`, and framework registration patterns.
-- Resource registration and plugin registration calls are structurally aligned with newer SDK generations.
-
-### Likely blockers / risk areas
-
-- Missing generated registration/interface headers (hard blocker).
-- No checked-in Visual Studio/Xcode/CMake project files; build must come from SDK tooling.
-- The code relies on legacy/deprecated classes such as `C4D_Falloff`, which may need verification against the 2026 SDK.
-- The effector implementation depends on MoGraph SDK details that should be verified against the actual 2026 headers.
-- Some source include paths were inconsistent and have been normalized for case-sensitive/platform-portable builds.
+Those are not meant to be hand-authored.
 
 ## Recommended bring-up workflow
 
-1. Install the Cinema 4D 2026 and later SDK.
-2. Place this repository where the SDK tooling expects plugin projects, or integrate it into the SDK project generator workflow.
-3. Generate the missing `*.hxx` registration/interface files.
-4. Build once and collect the first real compiler error set.
-5. Address SDK/API breakages iteratively from that compiler output.
+1. Verify the SDK extraction contains `frameworks/cinema.framework/` and sibling frameworks.
+2. Run `scripts/Configure-HOT4D-C4D2026SDK.ps1`.
+3. Build from the generated SDK build tree.
+4. Capture the first compiler/linker error set.
+5. Fix only the errors justified by compiler output or clearly documented SDK conventions.
 
 ## Additional migration notes
 
@@ -62,15 +115,11 @@ For a module-by-module source-tree map and upgrade-risk assessment, see:
 
 - `docs/MIGRATION-NOTES-C4D2026Plus.md`
 
-## Scope of this first pass
+## Scope of this pass
 
 This pass focused on:
 
-- identifying the likely SDK/build expectations,
-- documenting current blockers,
-- making low-risk portability cleanups,
-- avoiding speculative API rewrites without the real SDK present.
-
-
-
-
+- verifying the real SDK integration path,
+- proving that external-module discovery works through `MAXON_SDK_CUSTOM_PATHS_FILE`,
+- identifying the first concrete SDK-side blocker,
+- adding a repeatable configure helper and updated build notes.
