@@ -1,33 +1,45 @@
-This is HOT4D based on Houdini Ocean Toolkit. (see below)
-Thanks to Drew Whitehouse.
+# HOT4D-C4D2026
 
+An adaptation workspace for bringing **HOT4D** forward toward compatibility with **Cinema 4D 2026**.
 
-Original readMe.txt :
+## Upstream source
 
+This repository is based on the original HOT4D project:
+- Upstream repository: https://github.com/Valkaari/HOT4D
+- Original repository owner: Valkaari
 
-This is the source code for the Houdini Ocean Toolkit.
+HOT4D itself is based on the Houdini Ocean Toolkit and related upstream work referenced by the original project.
 
-For licensing details see the file LICENSE.txt.
+## License
 
-The toolkit leverages the following open source toolkits which are
-covered by their own individual license terms.
+This repository remains available under **GNU GPL v2.0**, following the upstream license.
 
+See:
+- `LICENSE.txt` for the retained license text
+- the upstream repository for original notices and attribution
 
-1. FFTW, http://www.fftw.org/ (GPL licensing)
-2. OpenEXR, http://www.openexr.com/ (modified BSD license, 
-   http://www.ilm.com/opensource)
-3. Blitz++, http://www.oonumerics.org/blitz/ (GPL/Blitz++ Artistic License,
-   http://www.oonumerics.org/blitz/legal/). 
-4. Loki, http://sourceforge.net/projects/loki-lib/ (MIT License)
+## Purpose
 
-For documentation etc start by looking at -
+This repository is intended to:
+- preserve the original HOT4D codebase
+- investigate build and SDK breakages against newer Cinema 4D versions
+- implement compatibility changes for Cinema 4D 2026
+- publish adaptation work under the same open-source license family required by upstream
 
-       http://www.odforce.net/wiki/index.php/HoudiniOceanToolkit
+## Repository layout
 
-The source is maintained at 
+The code structure is kept close to upstream:
+- `source/` — plugin and ocean simulation source code
+- `res/` — Cinema 4D resources, descriptions, strings, icons
+- `project/` — legacy project definitions from the original codebase
 
-       http://code.google.com/p/houdini-ocean-toolkit/
+## Status
 
-Drew Whitehouse
-ANU Supercomputer Facility
-June 2005,2009
+Initial fork-style bootstrap is complete.
+Cinema 4D 2026 compatibility analysis and porting work is in progress.
+
+## Attribution
+
+This repository is an adaptation/maintenance continuation and is **not** the original upstream project.
+If you need original history and context, start here:
+https://github.com/Valkaari/HOT4D
