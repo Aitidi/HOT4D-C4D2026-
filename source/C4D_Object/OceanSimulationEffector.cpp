@@ -22,7 +22,7 @@ Bool OceanSimulationEffector::GetDEnabling(const GeListNode* node, const DescID&
 	{
 		// current Time have to be disable if auto anim is on
 		GeData data;
-		node->GetParameter(DescID(AUTO_ANIM_TIME), data, DESCFLAGS_GET::NONE);
+		node->GetParameter(CreateDescID(AUTO_ANIM_TIME), data, DESCFLAGS_GET::NONE);
 		return !data.GetBool();
 	}
 
@@ -52,7 +52,7 @@ EXECUTIONRESULT 	OceanSimulationEffector::Execute(BaseObject *op, BaseDocument *
 	maxon::Bool doAutoTime;
 
 	GeData							uiData;
-	op->GetParameter(DescID(AUTO_ANIM_TIME), uiData, DESCFLAGS_GET::NONE);
+	op->GetParameter(CreateDescID(AUTO_ANIM_TIME), uiData, DESCFLAGS_GET::NONE);
 	doAutoTime = uiData.GetBool();
 
 
@@ -89,27 +89,27 @@ Bool OceanSimulationEffector::InitEffector(GeListNode* node, Bool isCloneInit)
 
 	if (!isCloneInit)
 	{
-		op->SetParameter(DescID(OCEAN_RESOLUTION), GeData(7), DESCFLAGS_SET::NONE);
-		op->SetParameter(DescID(SEED), GeData(12345), DESCFLAGS_SET::NONE);
-		op->SetParameter(DescID(OCEAN_SIZE), GeData(400.0), DESCFLAGS_SET::NONE);
-		op->SetParameter(DescID(WIND_SPEED), GeData(20.0), DESCFLAGS_SET::NONE);
-		op->SetParameter(DescID(WIND_DIRECTION), GeData(120.0), DESCFLAGS_SET::NONE);
-		op->SetParameter(DescID(SHRT_WAVELENGHT), GeData(0.01), DESCFLAGS_SET::NONE);
-		op->SetParameter(DescID(WAVE_HEIGHT), GeData(30.0), DESCFLAGS_SET::NONE);
-		op->SetParameter(DescID(CHOPAMOUNT), GeData(0.5), DESCFLAGS_SET::NONE);
-		op->SetParameter(DescID(DAMP_REFLECT), GeData(1.0), DESCFLAGS_SET::NONE);
-		op->SetParameter(DescID(WIND_ALIGNMENT), GeData(1.0), DESCFLAGS_SET::NONE);
-		op->SetParameter(DescID(OCEAN_DEPTH), GeData(200.0), DESCFLAGS_SET::NONE);
-		op->SetParameter(DescID(CURRENTTIME), GeData(0.0), DESCFLAGS_SET::NONE);
-		op->SetParameter(DescID(TIMELOOP), GeData(90), DESCFLAGS_SET::NONE);
-		op->SetParameter(DescID(TIMESCALE), GeData(0.5), DESCFLAGS_SET::NONE);
-		op->SetParameter(DescID(AUTO_ANIM_TIME), GeData(true), DESCFLAGS_SET::NONE);
-		op->SetParameter(DescID(DO_CATMU_INTER), GeData(false), DESCFLAGS_SET::NONE);
-		op->SetParameter(DescID(DO_JACOBIAN), GeData(false), DESCFLAGS_SET::NONE);
-		op->SetParameter(DescID(DO_CHOPYNESS), GeData(true), DESCFLAGS_SET::NONE);
-		op->SetParameter(DescID(PSEL_THRES), GeData(0.1), DESCFLAGS_SET::NONE);
-		op->SetParameter(DescID(JACOB_THRES), GeData(0.5), DESCFLAGS_SET::NONE);
-		op->SetParameter(DescID(FOAM_THRES), GeData(0.03), DESCFLAGS_SET::NONE);
+		op->SetParameter(CreateDescID(OCEAN_RESOLUTION), GeData(7), DESCFLAGS_SET::NONE);
+		op->SetParameter(CreateDescID(SEED), GeData(12345), DESCFLAGS_SET::NONE);
+		op->SetParameter(CreateDescID(OCEAN_SIZE), GeData(400.0), DESCFLAGS_SET::NONE);
+		op->SetParameter(CreateDescID(WIND_SPEED), GeData(20.0), DESCFLAGS_SET::NONE);
+		op->SetParameter(CreateDescID(WIND_DIRECTION), GeData(120.0), DESCFLAGS_SET::NONE);
+		op->SetParameter(CreateDescID(SHRT_WAVELENGHT), GeData(0.01), DESCFLAGS_SET::NONE);
+		op->SetParameter(CreateDescID(WAVE_HEIGHT), GeData(30.0), DESCFLAGS_SET::NONE);
+		op->SetParameter(CreateDescID(CHOPAMOUNT), GeData(0.5), DESCFLAGS_SET::NONE);
+		op->SetParameter(CreateDescID(DAMP_REFLECT), GeData(1.0), DESCFLAGS_SET::NONE);
+		op->SetParameter(CreateDescID(WIND_ALIGNMENT), GeData(1.0), DESCFLAGS_SET::NONE);
+		op->SetParameter(CreateDescID(OCEAN_DEPTH), GeData(200.0), DESCFLAGS_SET::NONE);
+		op->SetParameter(CreateDescID(CURRENTTIME), GeData(0.0), DESCFLAGS_SET::NONE);
+		op->SetParameter(CreateDescID(TIMELOOP), GeData(90), DESCFLAGS_SET::NONE);
+		op->SetParameter(CreateDescID(TIMESCALE), GeData(0.5), DESCFLAGS_SET::NONE);
+		op->SetParameter(CreateDescID(AUTO_ANIM_TIME), GeData(true), DESCFLAGS_SET::NONE);
+		op->SetParameter(CreateDescID(DO_CATMU_INTER), GeData(false), DESCFLAGS_SET::NONE);
+		op->SetParameter(CreateDescID(DO_JACOBIAN), GeData(false), DESCFLAGS_SET::NONE);
+		op->SetParameter(CreateDescID(DO_CHOPYNESS), GeData(true), DESCFLAGS_SET::NONE);
+		op->SetParameter(CreateDescID(PSEL_THRES), GeData(0.1), DESCFLAGS_SET::NONE);
+		op->SetParameter(CreateDescID(JACOB_THRES), GeData(0.5), DESCFLAGS_SET::NONE);
+		op->SetParameter(CreateDescID(FOAM_THRES), GeData(0.03), DESCFLAGS_SET::NONE);
 
 		bc->SetFloat(ID_MG_BASEEFFECTOR_MINSTRENGTH, -1.0);
 		bc->SetBool(ID_MG_BASEEFFECTOR_POSITION_ACTIVE, true);
@@ -150,60 +150,60 @@ maxon::Result<maxon::GenericData> OceanSimulationEffector::InitPoints(const Base
 	maxon::Bool						doJacobian, doChopyness, doAutoTime;
 
 	GeData							uiData;
-	op->GetParameter(DescID(OCEAN_RESOLUTION), uiData, DESCFLAGS_GET::NONE);
+	op->GetParameter(CreateDescID(OCEAN_RESOLUTION), uiData, DESCFLAGS_GET::NONE);
 	oceanResolution = 1 << uiData.GetInt32();
 
-	op->GetParameter(DescID(OCEAN_SIZE), uiData, DESCFLAGS_GET::NONE);
+	op->GetParameter(CreateDescID(OCEAN_SIZE), uiData, DESCFLAGS_GET::NONE);
 	oceanSize = uiData.GetFloat();
 
-	op->GetParameter(DescID(SHRT_WAVELENGHT), uiData, DESCFLAGS_GET::NONE);
+	op->GetParameter(CreateDescID(SHRT_WAVELENGHT), uiData, DESCFLAGS_GET::NONE);
 	shrtWaveLenght = uiData.GetFloat();
 
-	op->GetParameter(DescID(WAVE_HEIGHT), uiData, DESCFLAGS_GET::NONE);
+	op->GetParameter(CreateDescID(WAVE_HEIGHT), uiData, DESCFLAGS_GET::NONE);
 	waveHeight = uiData.GetFloat();
 
-	op->GetParameter(DescID(WIND_SPEED), uiData, DESCFLAGS_GET::NONE);
+	op->GetParameter(CreateDescID(WIND_SPEED), uiData, DESCFLAGS_GET::NONE);
 	windSpeed = uiData.GetFloat();
 
-	op->GetParameter(DescID(WIND_DIRECTION), uiData, DESCFLAGS_GET::NONE);
+	op->GetParameter(CreateDescID(WIND_DIRECTION), uiData, DESCFLAGS_GET::NONE);
 	windDirection = DegToRad(uiData.GetFloat());
 
-	op->GetParameter(DescID(WIND_ALIGNMENT), uiData, DESCFLAGS_GET::NONE);
+	op->GetParameter(CreateDescID(WIND_ALIGNMENT), uiData, DESCFLAGS_GET::NONE);
 	windAlign = uiData.GetFloat();
 
-	op->GetParameter(DescID(DAMP_REFLECT), uiData, DESCFLAGS_GET::NONE);
+	op->GetParameter(CreateDescID(DAMP_REFLECT), uiData, DESCFLAGS_GET::NONE);
 	dampReflection = uiData.GetFloat();
 
-	op->GetParameter(DescID(SEED), uiData, DESCFLAGS_GET::NONE);
+	op->GetParameter(CreateDescID(SEED), uiData, DESCFLAGS_GET::NONE);
 	seed = uiData.GetInt32();
 
-	op->GetParameter(DescID(OCEAN_DEPTH), uiData, DESCFLAGS_GET::NONE);
+	op->GetParameter(CreateDescID(OCEAN_DEPTH), uiData, DESCFLAGS_GET::NONE);
 	oceanDepth = uiData.GetFloat();
 
-	op->GetParameter(DescID(CHOPAMOUNT), uiData, DESCFLAGS_GET::NONE);
+	op->GetParameter(CreateDescID(CHOPAMOUNT), uiData, DESCFLAGS_GET::NONE);
 	chopAmount = uiData.GetFloat();
 
-	op->GetParameter(DescID(TIMELOOP), uiData, DESCFLAGS_GET::NONE);
+	op->GetParameter(CreateDescID(TIMELOOP), uiData, DESCFLAGS_GET::NONE);
 	timeLoop = uiData.GetInt32();
 
-	op->GetParameter(DescID(TIMESCALE), uiData, DESCFLAGS_GET::NONE);
+	op->GetParameter(CreateDescID(TIMESCALE), uiData, DESCFLAGS_GET::NONE);
 	timeScale = uiData.GetFloat();
 
 
-	op->GetParameter(DescID(AUTO_ANIM_TIME), uiData, DESCFLAGS_GET::NONE);
+	op->GetParameter(CreateDescID(AUTO_ANIM_TIME), uiData, DESCFLAGS_GET::NONE);
 	doAutoTime = uiData.GetBool();
 
 	
 
 	if (!doAutoTime)
 	{
-		op->GetParameter(DescID(CURRENTTIME), uiData, DESCFLAGS_GET::NONE);
+		op->GetParameter(CreateDescID(CURRENTTIME), uiData, DESCFLAGS_GET::NONE);
 		currentTime_ = uiData.GetFloat();
 	}
 
 	
 
-	op->GetParameter(DescID(DO_CHOPYNESS), uiData, DESCFLAGS_GET::NONE);
+	op->GetParameter(CreateDescID(DO_CHOPYNESS), uiData, DESCFLAGS_GET::NONE);
 	doChopyness = uiData.GetBool();
 
 
@@ -228,12 +228,12 @@ maxon::Result<void> OceanSimulationEffector::EvaluatePoint(const BaseObject* op,
 	maxon::Bool doCatmuInter;
 
 	GeData							uiData;
-	op->GetParameter(DescID(WAVE_HEIGHT), uiData, DESCFLAGS_GET::NONE);
+	op->GetParameter(CreateDescID(WAVE_HEIGHT), uiData, DESCFLAGS_GET::NONE);
 	waveHeight = uiData.GetFloat();
 
 
 
-	op->GetParameter(DescID(DO_CATMU_INTER), uiData, DESCFLAGS_GET::NONE);
+	op->GetParameter(CreateDescID(DO_CATMU_INTER), uiData, DESCFLAGS_GET::NONE);
 	doCatmuInter = uiData.GetBool();
 
 	OceanSimulation::INTERTYPE interType = OceanSimulation::INTERTYPE::LINEAR;
