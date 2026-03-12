@@ -22,7 +22,12 @@ enum
     DO_CHOPYNESS,
     DO_CATMU_INTER,
     DO_NORMALS,
+    ID_GRP_OCEAN,
+    ID_GRP_WIND,
+    ID_GRP_ANIMATION,
+    ID_GRP_DEFORMATION,
     DO_JACOBIAN,
+    ID_GRP_JACOBIAN,
     JACOBMAP,
     ID_GRP_FOAM,
     FOAMMAP,
@@ -32,6 +37,7 @@ enum
     PSEL_PARTICLES,
     PSEL_THRES,
     ACTIVE_DEFORM,
+    CREATE_FOAM_TAGS,
 
     // for the cycle, create power of 2
     RESO_4 =4,

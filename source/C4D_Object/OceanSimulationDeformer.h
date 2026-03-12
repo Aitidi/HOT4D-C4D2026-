@@ -26,6 +26,7 @@ private:
 	
 	maxon::Float				MapRange(maxon::Float value, const maxon::Float min_input, const maxon::Float max_input, const maxon::Float min_output, const maxon::Float max_output) const;
 	Bool						EnsureFalloff(BaseObject* op) const;
+	Bool						EnsureJacobianFoamTags(BaseObject* op) const;
 
 public:
 	virtual ~OceanSimulationDeformer()

@@ -20,6 +20,11 @@ STRINGTABLE OceanDescription
     AUTO_ANIM_TIME      "Auto Anim Time";
     DO_CHOPYNESS        "Active Chop";
     DO_CATMU_INTER      "Catmull-Rom Interpolation (low rez)";
+    ID_GRP_OCEAN        "Ocean";
+    ID_GRP_WIND         "Wind & Spectrum";
+    ID_GRP_ANIMATION    "Animation";
+    ID_GRP_DEFORMATION  "Deformation";
+    ID_GRP_JACOBIAN     "Jacobian & Foam";
     DO_NORMALS          "Do Normals (not used)";
     DO_JACOBIAN         "Do Jacobian";
     ACTIVE_DEFORM       "Active Deform";
@@ -32,6 +37,7 @@ STRINGTABLE OceanDescription
     PRE_RUN_FOAM        "Pre Run Foam";
     PSEL_PARTICLES      "Point Selection";
     PSEL_THRES          "Particules Threshold";
+    CREATE_FOAM_TAGS    "Create Foam Tags";
     RESO_4              "16x16";
     RESO_5              "32x32";
     RESO_6              "64x64";

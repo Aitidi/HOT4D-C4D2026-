@@ -81,6 +81,50 @@ Bool OceanSimulationDeformer::EnsureFalloff(BaseObject* op) const
 	return true;
 }
 
+Bool OceanSimulationDeformer::EnsureJacobianFoamTags(BaseObject* op) const
+{
+	if (!op)
+		return false;
+
+	BaseObject* target = op->GetUp() ? static_cast<BaseObject*>(op->GetUp()) : nullptr;
+	if ((!target || !target->IsInstanceOf(Opoint)) && op->GetDown())
+		target = static_cast<BaseObject*>(op->GetDown());
+	if (!target || !target->IsInstanceOf(Opoint))
+		return false;
+
+	const Int32 pointCount = ToPoint(target)->GetPointCount();
+	if (pointCount <= 0)
+		return false;
+
+	auto ensureVertexColorTag = [target, pointCount](const maxon::String& tagName) -> VertexColorTag*
+	{
+		for (BaseTag* tag = target->GetFirstTag(); tag; tag = tag->GetNext())
+		{
+			if (tag->IsInstanceOf(Tvertexcolor) && tag->GetName() == tagName)
+				return static_cast<VertexColorTag*>(tag);
+		}
+
+		VertexColorTag* colorTag = VertexColorTag::Alloc(pointCount);
+		if (!colorTag)
+			return nullptr;
+		colorTag->SetPerPointMode(true);
+		colorTag->SetName(tagName);
+		target->InsertTag(colorTag);
+		return colorTag;
+	};
+
+	VertexColorTag* jacobTag = ensureVertexColorTag("Jminus"_s);
+	VertexColorTag* foamTag = ensureVertexColorTag("Foam"_s);
+	if (!jacobTag || !foamTag)
+		return false;
+
+	op->SetParameter(CreateDescID(JACOBMAP), GeData(jacobTag), DESCFLAGS_SET::NONE);
+	op->SetParameter(CreateDescID(FOAMMAP), GeData(foamTag), DESCFLAGS_SET::NONE);
+	op->Message(MSG_UPDATE);
+	EventAdd();
+	return true;
+}
+
 Bool OceanSimulationDeformer::Message(GeListNode *node, Int32 type, void *t_data)
 {
 	BaseObject* op = static_cast<BaseObject*>(node);
@@ -93,6 +137,17 @@ Bool OceanSimulationDeformer::Message(GeListNode *node, Int32 type, void *t_data
 	{
 		case MSG_MENUPREPARE: {
 			((BaseObject*)node)->SetDeformMode(true);
+			break;
+		}
+		case MSG_DESCRIPTION_COMMAND:
+		{
+			DescriptionCommand* dc = static_cast<DescriptionCommand*>(t_data);
+			if (dc && dc->_descId[0].id == CREATE_FOAM_TAGS)
+			{
+				if (!EnsureJacobianFoamTags(op))
+					ApplicationOutput("HOT4D DEBUG: Create Foam Tags failed"_s);
+				return true;
+			}
 			break;
 		}
 		case MSG_ANIMATE:
@@ -228,24 +283,33 @@ DRAWRESULT OceanSimulationDeformer::Draw(BaseObject *op, DRAWPASS drawpass, Base
 
 Bool OceanSimulationDeformer::GetDEnabling(const GeListNode *node, const DescID &id, const GeData &t_data, DESCFLAGS_ENABLE flags, const BaseContainer *itemdesc) const
 {
+	GeData data;
+
 	if (id[0].id == CURRENTTIME)
 	{
-		// current Time have to be disable if auto anim is on
-		GeData data;
 		node->GetParameter(CreateDescID(AUTO_ANIM_TIME), data, DESCFLAGS_GET::NONE);
 		return !data.GetBool();
 	}
 
 	if (id[0].id == PRE_RUN_FOAM)
 	{
-		GeData data;
 		node->GetParameter(CreateDescID(AUTO_ANIM_TIME), data, DESCFLAGS_GET::NONE);
 		return data.GetBool();
 	}
 
-	
-	return SUPER::GetDEnabling(node, id, t_data, flags, itemdesc);
+	if (id[0].id == CREATE_FOAM_TAGS)
+	{
+		node->GetParameter(CreateDescID(DO_JACOBIAN), data, DESCFLAGS_GET::NONE);
+		return data.GetBool();
+	}
 
+	if (id[0].id == JACOBMAP || id[0].id == JACOB_THRES || id[0].id == FOAMMAP || id[0].id == FOAM_THRES || id[0].id == PSEL_PARTICLES || id[0].id == PSEL_THRES)
+	{
+		node->GetParameter(CreateDescID(DO_JACOBIAN), data, DESCFLAGS_GET::NONE);
+		return data.GetBool();
+	}
+
+	return SUPER::GetDEnabling(node, id, t_data, flags, itemdesc);
 }
 
 
@@ -533,11 +597,11 @@ Bool OceanSimulationDeformer::ModifyObject(const BaseObject *mod, const BaseDocu
 	}
 
 
-	if (stag) 
+	if (stag)
 	{
 		bsp = stag->GetWritableBaseSelect();
-		if (bsp) 
-			bsp->DeselectAll(); 
+		if (bsp)
+			bsp->DeselectAll();
 	}
 
 
@@ -606,10 +670,12 @@ Bool OceanSimulationDeformer::ModifyObject(const BaseObject *mod, const BaseDocu
 
 	maxon::BaseArray<maxon::Float> storeJminus;
 	storeJminus.Resize(pcnt) iferr_return;
+	maxon::BaseArray<maxon::Bool> storeSelection;
+	storeSelection.Resize(pcnt) iferr_return;
+	for (maxon::Int32 i = 0; i < pcnt; ++i)
+		storeSelection[i] = false;
 
-	
-	
-	auto updatePoints = [this, &mod, &padr, &interType, &doChopyness, &doJacobian, &outputsOK, &fieldSamples, &falloffData, &weight, &jacobmaptag, &jacobpoint, &bsp, &pselThres, &storeJminus, &doDeform](maxon::Int32 i)
+	auto updatePoints = [this, &mod, &padr, &interType, &doChopyness, &doJacobian, &outputsOK, &fieldSamples, &falloffData, &weight, &jacobmaptag, &jacobpoint, &pselThres, &storeJminus, &storeSelection, &doDeform](maxon::Int32 i)
 	{
 
 		iferr_scope_handler
@@ -661,9 +727,8 @@ Bool OceanSimulationDeformer::ModifyObject(const BaseObject *mod, const BaseDocu
 			// if (jacobmaptag && jacobpoint) 
 			//	jacobpoint[i] = maxon::SafeConvert<maxon::Float32>(jminusvalue);
 			
-			if (bsp) 
-				if (jMinusValue > pselThres) 
-					bsp->Toggle(i);
+			if (jMinusValue > pselThres)
+				storeSelection[i] = true;
 
 			storeJminus[i] = jMinusValue;
 		}
@@ -677,37 +742,34 @@ Bool OceanSimulationDeformer::ModifyObject(const BaseObject *mod, const BaseDocu
 			padr[i] = p; // finally update the point
 	};
 	maxon::ParallelFor::Dynamic(0, pcnt, updatePoints);
-	if (pcnt > 0)
-	{
-		ApplicationOutput("HOT4D DEBUG: ModifySummary t=@ auto=@ deform=@ pts=@ p0_before=(@,@,@) disp0=(@,@,@) j0=@ p0_after=(@,@,@)",
-			currentTime_, doAutoTime, doDeform, pcnt,
-			firstBefore.x, firstBefore.y, firstBefore.z,
-			firstDisp.x, firstDisp.y, firstDisp.z,
-			firstJMinus,
-			padr[0].x, padr[0].y, padr[0].z);
-	}
 
 	if (jacobmaptag && jacobpoint && doJacobian)
 	{
 		// get the range of jminus value to set the map in the range of 0-1
 		for (auto &jvalue : storeJminus)
 		{
-
 			if (jvalue > newMax)
 				newMax = jvalue;
 			if (jvalue < newMin)
 				newMin = jvalue;
 		}
-		
-		
+
 		auto updateTag = [&jacobmaptag, &storeJminus, &jacobpoint, &newMax, &newMin, this](maxon::Int32 i)
 		{
-			//jacobpoint[i] = maxon::SafeConvert<maxon::Float32>(MapRange(storeJminus[i], newMin, newMax, 0.0, 1.0));
 			jacobmaptag->Set(jacobpoint, nullptr, nullptr, i, maxon::ColorA32(maxon::SafeConvert<maxon::Float32>(MapRange(storeJminus[i], newMin, newMax, 0.0, 1.0))));
 		};
 		maxon::ParallelFor::Dynamic(0, jacobmaptag->GetDataCount(), updateTag);
 
 		jacobmaptag->SetDirty(DIRTYFLAGS::NONE);
+	}
+
+	if (bsp && doJacobian)
+	{
+		for (maxon::Int32 i = 0; i < pcnt; ++i)
+		{
+			if (storeSelection[i])
+				bsp->Select(i);
+		}
 	}
 
 
