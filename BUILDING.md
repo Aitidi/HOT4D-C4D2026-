@@ -125,3 +125,123 @@ This pass focused on:
 - proving that external-module discovery works through `MAXON_SDK_CUSTOM_PATHS_FILE`,
 - identifying the first concrete SDK-side blocker,
 - adding a repeatable configure helper and updated build notes.
+
+## Lessons learned during the C4D 2026 port
+
+### 1. `Ocean().Create()` failure was a Maxon registration bootstrap problem, not an ocean algorithm problem
+
+The most important debugging result of this port is that a failure like:
+
+```text
+OceanSimulation::Ocean().Create() -> NULL_RETURN_REASON::NULLPTR
+```
+
+can happen even when the implementation class itself is valid.
+
+What we observed:
+
+- `OceanImplementation::GetClass()` worked.
+- `RunOceanImplementationSelfTest()` succeeded.
+- `System::FindDefinition(CLASS, ...)` and `System::FindDefinition(COMPONENT, ...)` were initially missing.
+- The real ocean simulation code was fine; the public Maxon registration path was not.
+
+Meaning:
+
+- local/private class registration may still work,
+- but `MAXON_DECLARATION(...).Create()` can fail if the generated registration bootstrap is wired incorrectly.
+
+### 2. The generated `register.cpp` conflicted with HOT4D's explicit bootstrap path
+
+The critical fix was not inside the ocean algorithm.
+It was in how the target consumed generated Maxon registration units.
+
+What finally worked:
+
+- keep `source/framework_registration.cpp`,
+- make it include `register.hxx` through the non-framework path,
+- keep generated `interface_registration.cpp`,
+- **do not also compile generated `register.cpp` for this target**.
+
+For this project, compiling both paths at once left `Ocean().Create()` broken.
+After switching to the corrected bootstrap arrangement:
+
+- `Ocean().Create()` succeeded,
+- `RunOceanImplementationSelfTest()` succeeded,
+- the plugin could create the ocean object through the declaration path again.
+
+### 3. Make registration fixes reproducible at the project level, not by hand-editing the build tree
+
+A temporary `.vcxproj` edit can prove a theory, but it is not a finished fix.
+The durable solution was to add a project-local `project/CMakeLists.txt` which overrides the auto-generated target settings for HOT4D.
+
+That file now captures the important rule for this plugin:
+
+- compile `framework_registration.cpp`,
+- compile generated `interface_registration.cpp`,
+- skip generated `register.cpp`.
+
+This makes reconfigure/rebuild stable and prevents the fix from being lost the next time CMake regenerates the project.
+
+### 4. Deformer playback in C4D 2026 required explicit execution-chain registration
+
+A major runtime symptom was:
+
+- the deformer only updated when parameters changed,
+- playback did not continuously animate the ocean.
+
+The effective fix was to register the deformer into the execution pipeline using:
+
+- `OBJECT_CALL_ADDEXECUTION`,
+- `AddToExecution()`,
+- `Execute()`
+
+and to schedule evaluation in the proper animation-related execution priority.
+
+Without that integration, the ocean can appear "stuck" even when the simulation code is otherwise correct.
+
+### 5. Do not write `BaseSelect`/`SelectionTag` state from the parallel deformation loop
+
+A C4D 2026 stability issue showed up in the Point Selection/Jacobian path.
+The unsafe pattern was:
+
+- computing point-selection state in `ParallelFor`, and
+- directly mutating `SelectionTag` / `BaseSelect` from that parallel region.
+
+That can crash.
+The safe pattern is:
+
+1. compute per-point selection flags in parallel,
+2. write the selection back to the tag on a single thread afterward.
+
+### 6. Foam/Jacobian tag creation must target the deformed point object, not the deformer itself
+
+When HOT4D needs to auto-create helper tags such as `Jminus` and `Foam`, the creation target matters.
+The robust logic for the current object hierarchy is:
+
+- prefer the parent object (`GetUp()`), because HOT4D usually sits as a child deformer under the point object,
+- only fall back to `GetDown()` if the parent is not a usable point object.
+
+Creating the tags on the deformer itself or on the wrong hierarchy node leads to failures or misleading UI state.
+
+### 7. Temporary diagnostic probes should be removed once the real issue is understood
+
+A temporary `MiniProbe` declaration/class probe was useful while isolating the registration problem, but it was not part of HOT4D's real feature set.
+Once the Maxon registration issue was understood and fixed, the probe was removed.
+
+Takeaway:
+
+- use minimal probes aggressively during diagnosis,
+- but delete them once the real system is working again.
+
+### 8. Current known state after the fix
+
+At the end of this pass, the important practical state is:
+
+- HOT4D builds successfully against the current configured SDK environment,
+- `Ocean().Create()` succeeds,
+- the self-test succeeds,
+- the registration bootstrap fix is reproducible,
+- the deformer updates correctly during playback,
+- Jacobian/foam and point-selection crash fixes are in place.
+
+There may still be cosmetic warnings and deeper registration-theory questions worth revisiting later, but the main migration blockers described above have been resolved.
