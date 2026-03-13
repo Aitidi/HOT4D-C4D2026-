@@ -9,7 +9,6 @@
 #include "c4d.h"
 #include "main.h"
 #include "OceanSimulation/OceanSimulation_decl.h"
-#include "OceanSimulation/MiniProbe_decl.h"
 
 namespace OceanSimulation
 {
